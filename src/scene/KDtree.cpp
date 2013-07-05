@@ -11,16 +11,16 @@ static Real get_projection(const Vector3& v , int axis)
 	return inf;
 }
 
-static int get_axis(const int &axis)
+static KDtreeNode::Axes get_axis(const int &axis)
 {
 	if (axis == 0)
-		return KDtreeNode::Axes::X_axis;
+		return KDtreeNode::X_axis;
 	else if (axis == 1)
-		return KDtreeNode::Axes::Y_axis;
+		return KDtreeNode::Y_axis;
 	else if (axis == 2)
-		return KDtreeNode::Axes::Z_axis;
+		return KDtreeNode::Z_axis;
 	else 
-		return KDtreeNode::Axes::No_axis;
+		return KDtreeNode::No_axis;
 }
 
 static int cmp_sort_event(const void *p1 , const void *p2)
@@ -52,11 +52,11 @@ void KDtree::init(const std::vector<Geometry*>& _objlist)
 		{
 			Real st = get_projection(root->objlist[j]->box.l , i);
 			Real ed = get_projection(root->objlist[j]->box.r , i);
-			root->e[i][root->eventNum[i]].type = Event::EventType::Start;
+			root->e[i][root->eventNum[i]].type = Event::Start;
 			root->e[i][root->eventNum[i]].pos = st;
 			root->e[i][root->eventNum[i]].index = j;
 			root->eventNum[i]++;
-			root->e[i][root->eventNum[i]].type = Event::EventType::End;
+			root->e[i][root->eventNum[i]].type = Event::End;
 			root->e[i][root->eventNum[i]].pos = ed;
 			root->e[i][root->eventNum[i]].index = j;
 			root->eventNum[i]++;
@@ -72,7 +72,7 @@ void KDtree::init(const std::vector<Geometry*>& _objlist)
 	root->box.r.z = root->e[2][root->eventNum[2] - 1].pos;
 
 	root->left = root->right = NULL;
-	root->axis = KDtreeNode::Axes::No_axis;
+	root->axis = KDtreeNode::No_axis;
 }
 
 static Real SA(const Vector3& v)
@@ -101,7 +101,7 @@ static Real SAH(KDtreeNode *tr , int axis , Real plane ,
 static void find_split_plane(KDtreeNode *tr)
 {
 	Real cost = inf;
-	tr->axis = KDtreeNode::Axes::No_axis;
+	tr->axis = KDtreeNode::No_axis;
 	for (int axis = 0; axis < 3; axis++)
 	{
 		int nl , np , nr;
@@ -115,9 +115,9 @@ static void find_split_plane(KDtreeNode *tr)
 			now = tr->e[axis][i].pos;
 			while (i < tr->eventNum[axis] && tr->e[axis][i].pos == now)
 			{
-				if (tr->e[axis][i].type == Event::EventType::End)
+				if (tr->e[axis][i].type == Event::End)
 					p_end++;
-				if (tr->e[axis][i].type == Event::EventType::Start)
+				if (tr->e[axis][i].type == Event::Start)
 					p_start++;
 				i++;
 			}
@@ -128,11 +128,11 @@ static void find_split_plane(KDtreeNode *tr)
 				cost = tmp;
 				tr->splitPlane = now;
 				if (axis == 0)
-					tr->axis = KDtreeNode::Axes::X_axis;
+					tr->axis = KDtreeNode::X_axis;
 				else if (axis == 1)
-					tr->axis = KDtreeNode::Axes::Y_axis;
+					tr->axis = KDtreeNode::Y_axis;
 				else if (axis == 2)
-					tr->axis = KDtreeNode::Axes::Z_axis;
+					tr->axis = KDtreeNode::Z_axis;
 			}
 			nl += p_start;
 		}
@@ -156,11 +156,11 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 	r = tr->right;
 
 	int axis;
-	if (tr->axis == KDtreeNode::Axes::X_axis)
+	if (tr->axis == KDtreeNode::X_axis)
 		axis = 0;
-	else if (tr->axis == KDtreeNode::Axes::Y_axis)
+	else if (tr->axis == KDtreeNode::Y_axis)
 		axis = 1;
-	else if (tr->axis == KDtreeNode::Axes::Z_axis)
+	else if (tr->axis == KDtreeNode::Z_axis)
 		axis = 2;
 
 	int nl , nr , nb;
@@ -171,17 +171,17 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 		Real ed = get_projection(tr->objlist[i]->box.r , axis);
 		if (cmp(ed - tr->splitPlane) <= 0)
 		{
-			tr->div[i] = DivType::LeftOnly;
+			tr->div[i] = LeftOnly;
 			nl++;
 		}
 		else if (cmp(tr->splitPlane - st) <= 0)
 		{
-			tr->div[i] = DivType::RightOnly;
+			tr->div[i] = RightOnly;
 			nr++;
 		}
 		else
 		{
-			tr->div[i] = DivType::Both;
+			tr->div[i] = Both;
 			nb++;
 		}
 	}
@@ -189,12 +189,12 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 	l->objNum = nl + nb;
 	l->objlist = new Geometry*[l->objNum];
 	l->left = l->right = NULL;
-	l->axis = KDtreeNode::Axes::No_axis;
+	l->axis = KDtreeNode::No_axis;
 
 	r->objNum = nb + nr;
 	r->objlist = new Geometry*[r->objNum];
 	r->left = r->right = NULL;
-	r->axis = KDtreeNode::Axes::No_axis;
+	r->axis = KDtreeNode::No_axis;
 
 	int pl , pr;
 	pl = pr = 0;
@@ -203,12 +203,12 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 	index_to_r = new int[tr->objNum];
 	for (int i = 0; i < tr->objNum; i++)
 	{
-		if (tr->div[i] == DivType::LeftOnly)
+		if (tr->div[i] == LeftOnly)
 		{
 			index_to_l[i] = pl;
 			l->objlist[pl++] = tr->objlist[i];
 		}
-		else if (tr->div[i] == DivType::RightOnly)
+		else if (tr->div[i] == RightOnly)
 		{
 			index_to_r[i] = pr;
 			r->objlist[pr++] = tr->objlist[i];
@@ -232,21 +232,21 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 		{
 			for (int j = 0; j < tr->eventNum[i]; j++)
 			{
-				if (tr->div[tr->e[i][j].index] == DivType::LeftOnly)
+				if (tr->div[tr->e[i][j].index] == LeftOnly)
 				{
 					e.pos = tr->e[i][j].pos;
 					e.type = tr->e[i][j].type;
 					e.index = index_to_l[tr->e[i][j].index];
 					l->e[i][l->eventNum[i]++] = e;
 				}
-				else if (tr->div[tr->e[i][j].index] == DivType::RightOnly)
+				else if (tr->div[tr->e[i][j].index] == RightOnly)
 				{
 					e.pos = tr->e[i][j].pos;
 					e.type = tr->e[i][j].type;
 					e.index = index_to_r[tr->e[i][j].index];
 					r->e[i][r->eventNum[i]++] = e;
 				}
-				else if (tr->div[tr->e[i][j].index] == DivType::Both)
+				else if (tr->div[tr->e[i][j].index] == Both)
 				{
 					e.pos = tr->e[i][j].pos;
 					e.type = tr->e[i][j].type;
@@ -264,23 +264,23 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 		{
 			for (int j = 0; j < tr->eventNum[i]; j++)
 			{
-				if (tr->div[tr->e[i][j].index] == DivType::LeftOnly)
+				if (tr->div[tr->e[i][j].index] == LeftOnly)
 				{
 					e.pos = tr->e[i][j].pos;
 					e.type = tr->e[i][j].type;
 					e.index = index_to_l[tr->e[i][j].index];
 					l->e[i][l->eventNum[i]++] = e;
 				}
-				else if (tr->div[tr->e[i][j].index] == DivType::RightOnly)
+				else if (tr->div[tr->e[i][j].index] == RightOnly)
 				{
 					e.pos = tr->e[i][j].pos;
 					e.type = tr->e[i][j].type;
 					e.index = index_to_r[tr->e[i][j].index];
 					r->e[i][r->eventNum[i]++] = e;
 				}
-				else if (tr->div[tr->e[i][j].index] == DivType::Both)
+				else if (tr->div[tr->e[i][j].index] == Both)
 				{
-					if (tr->e[i][j].type == Event::EventType::End)
+					if (tr->e[i][j].type == Event::End)
 					{
 						e.pos = tr->splitPlane;
 						e.type = tr->e[i][j].type;
@@ -292,7 +292,7 @@ void KDtree::build_tree(KDtreeNode *tr , int dep)
 						e.index = index_to_r[tr->e[i][j].index];
 						r->e[i][r->eventNum[i]++] = e;
 					}
-					else if (tr->e[i][j].type == Event::EventType::Start)
+					else if (tr->e[i][j].type == Event::Start)
 					{
 						e.pos = tr->e[i][j].pos;
 						e.type = tr->e[i][j].type;
@@ -340,7 +340,7 @@ Geometry* KDtree::traverse(const Ray& ray , KDtreeNode *tr)
 {
 	if (tr == NULL)
 		return NULL;
-	if (tr->axis == KDtreeNode::Axes::No_axis)
+	if (tr->axis == KDtreeNode::No_axis)
 	{
 		Real tmp = inf , t = inf;
 		int inside;
@@ -369,11 +369,11 @@ Geometry* KDtree::traverse(const Ray& ray , KDtreeNode *tr)
 	if (cmp(diff) == 0)
 	{
 		Vector3 n;
-		if (tr->axis == KDtreeNode::Axes::X_axis)
+		if (tr->axis == KDtreeNode::X_axis)
 			n = Vector3::UnitX;
-		else if (tr->axis == KDtreeNode::Axes::Y_axis)
+		else if (tr->axis == KDtreeNode::Y_axis)
 			n = Vector3::UnitY;
-		else if (tr->axis == KDtreeNode::Axes::Z_axis)
+		else if (tr->axis == KDtreeNode::Z_axis)
 			n = Vector3::UnitZ;
 		if (cmp(ray.dir ^ n) > 0)
 		{

@@ -8,7 +8,8 @@ void Geometry::set_box()
 
 Material& Geometry::get_material()
 {
-	return Material();
+	Material material;
+	return material;
 }
 
 Color3 Geometry::get_diffuse_color(Vector3 pos) 

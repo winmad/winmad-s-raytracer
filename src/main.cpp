@@ -5,8 +5,6 @@
 
 Raytracer raytracer;
 
-FILE* fp = fopen("debug.txt" , "w");
-
 int main()
 {
 	raytracer.init();
