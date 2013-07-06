@@ -26,7 +26,7 @@ public:
 class Scene
 {
 public:
-	static const int point_light_num = 1000;
+	static const int point_light_num = 100;
 	
 	std::vector<PointLight> lightlist;
     std::vector<Triangle> area_lightlist;

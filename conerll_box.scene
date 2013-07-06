@@ -48,10 +48,18 @@
 	</object>
 	
 	<object>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_largebox.obj"/>
+		<diffuse r="0.725" g="0.71" b="0.68"/>
+		<ambient r="0" g="0" b="0"/>
+		<shininess shininess="0"/>
+	</object>
+	
+	<object>
 		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_smallbox.obj"/>
 		<diffuse r="0.725" g="0.71" b="0.68"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>
 	</object>
 </scene>
+
 

@@ -143,6 +143,7 @@ void Scene::load_scene(char* filename)
 					mesh.vertices[mesh.triangles[i].v[1]] ,
 					mesh.vertices[mesh.triangles[i].v[2]]);
 				t->get_material().diffuse = diffuse;
+				t->get_material().specular = diffuse;
 				t->get_material().ambient = ambient;
 				t->get_material().shininess = shininess;
 

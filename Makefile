@@ -6,7 +6,7 @@
 
 OBJ_DIR = obj
 BIN_DIR = bin
-TARGET = o_O
+TARGET = ToT
 
 BIN_TARGET = $(BIN_DIR)/$(TARGET)
 
@@ -14,8 +14,8 @@ INCLUDE_DIR = -I src/
 DEFINES = -D__DEBUG_BUILD
 
 
-CXXFLAGS += -O3
-#CXXFLAGS += -g -O0
+#CXXFLAGS += -O3
+CXXFLAGS += -g -O0
 #CXXFLAGS += -pg
 CXXFLAGS += #$(DEFINES)
 #CXXFLAGS += -std=c++11

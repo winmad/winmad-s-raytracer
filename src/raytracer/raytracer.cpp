@@ -24,7 +24,22 @@ Geometry* getCrossPointAll(Raytracer& raytracer ,const Ray& ray , Real& t ,
 	{
 		g->hit(ray , t , p , n , inside);
 	}
+    else
+    {
+        t = inf;
+    }
 	return g;
+}
+
+Real calc_t(const Vector3& st , const Vector3& ed , const Vector3& dir)
+{
+    if (cmp(dir.x) != 0)
+        return (ed.x - st.x) / dir.x;
+    else if (cmp(dir.y) != 0)
+        return (ed.y - st.y) / dir.y;
+    else if (cmp(dir.z) != 0)
+        return (ed.z - st.z) / dir.z;
+    return inf;
 }
 
 /* Phong model */
@@ -36,7 +51,7 @@ Color3 calc_brdfTerm(const Vector3& lightDir , const Vector3& visionDir ,
     Real alpha = reflectDir ^ visionDir;
     Color3 res = g->get_material().diffuse / PI;
     res = res + g->get_material().specular *
-        (52 / 2 / PI * pow(clamp_val(alpha , 0.0 , 1.0) , 50));
+        (12 / 2 / PI * pow(clamp_val(alpha , 0.0 , 1.0) , 10));
     return res;
 }
 
@@ -49,7 +64,7 @@ Color3 direct_illumination(Raytracer& raytracer , Geometry* g ,
     Real cosTerm;
     Color3 brdfTerm;
     Ray ray;
-    Real _t;
+    Real _t , t_light;
     Vector3 _p , _n;
     int _inside;
 
@@ -58,21 +73,25 @@ Color3 direct_illumination(Raytracer& raytracer , Geometry* g ,
     for (int i = 0; i < N; i++)
     {
         int k = rand() % raytracer.scene.lightlist.size();
+        //int k = i;
         lightDir = raytracer.scene.lightlist[k].pos - p;
         lightDir.normalize();
 
-        ray = Ray(p + lightDir * eps * 10.0 , lightDir);
-        if (getCrossPointAll(raytracer , ray , _t , _p , _n , _inside) == NULL)
+        ray = Ray(p + lightDir * (eps * 10.0) , lightDir);
+        getCrossPointAll(raytracer , ray , _t , _p , _n , _inside);
+        t_light = calc_t(p , raytracer.scene.lightlist[k].pos , lightDir);
+        if (cmp(t_light - _t) > 0)
             continue;
         
         brdfTerm = calc_brdfTerm(lightDir , visionDir , g , n);
 
-        cosTerm = n ^ lightDir;
+        //cosTerm = clamp_val(n ^ lightDir * (-1.0) , 0.0 , 1.0);
+        cosTerm = 1;
 
         res = res + (raytracer.scene.lightlist[k].color | brdfTerm) *
-            (cosTerm * raytracer.scene.lightlist.size());
+            cosTerm;
     }
-    res = res / N * PI;
+    res = res / N;
     return res;
 }
 
@@ -85,20 +104,25 @@ Color3 indirect_illumination(Raytracer& raytracer, Geometry* g ,
     Ray ray;
     Color3 tmp , brdfTerm;
 
+    Real absorb = 1.0 - (g->get_material().specular.r + g->get_material().specular.g + g->get_material().specular.b) / 3.0;
+
+    if (cmp(drand48() - absorb) <= 0)
+        return res;
+
     int N = 4;
     
     for (int i = 0; i < N; i++)
     {
         reflectDir = sample_dir_on_hemisphere(n);
-        ray = Ray(p + reflectDir * eps * 10.0 , reflectDir);
+        ray = Ray(p + reflectDir * (eps * 10.0) , reflectDir);
         tmp = raytracer.raytracing(ray , dep + 1);
 
         brdfTerm = calc_brdfTerm(reflectDir , visionDir , g , n);
 
         res = res + (tmp | brdfTerm);
     }
-    res = res / N;
-    return res;
+    res = res / N * PI;
+    return res / (1.0 - absorb);
 }
 
 Color3 Raytracer::raytracing(const Ray& ray , int dep)

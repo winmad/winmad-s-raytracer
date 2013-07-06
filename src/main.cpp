@@ -8,6 +8,6 @@ Raytracer raytracer;
 int main()
 {
 	raytracer.init();
-	raytracer.render("result.jpg");
+	raytracer.render("result_10:40.jpg");
 	return 0;
 }
