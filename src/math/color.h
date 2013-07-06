@@ -60,6 +60,7 @@ const Color3 operator +(const Color3& , const Color3&);
 const Color3 operator -(const Color3& , const Color3&);
 const Color3 operator *(const Color3& , const Real&);
 const Color3 operator |(const Color3& , const Color3&);
+const Color3 operator /(const Color3& , const Real&);
 
 void print_color3(FILE* fp , const Color3& color);
 

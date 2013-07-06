@@ -9,28 +9,35 @@ const Color3 Color3::Blue = Color3(0.0 , 0.0 , 1.0);
 const Color3 operator +(const Color3& left , const Color3& right)
 {
 	Color3 res = Color3(left.r + right.r , left.g + right.g , left.b + right.b);
-	res.clamp();
+	//res.clamp();
 	return res;
 }
 
 const Color3 operator -(const Color3& left , const Color3& right)
 {
 	Color3 res = Color3(left.r - right.r , left.g - right.g , left.b - right.b);
-	res.clamp();
+	//res.clamp();
 	return res;
 }
 
 const Color3 operator *(const Color3& left , const Real& right)
 {
 	Color3 res = Color3(left.r * right , left.g * right , left.b * right);
-	res.clamp();
+	//res.clamp();
 	return res;
 }
 
 const Color3 operator |(const Color3& left , const Color3& right)
 {
 	Color3 res = Color3(left.r * right.r , left.g * right.g , left.b * right.b);
-	res.clamp();
+	//res.clamp();
+	return res;
+}
+
+const Color3 operator /(const Color3& left , const Real& right)
+{
+	Color3 res = Color3(left.r / right , left.g / right , left.b / right);
+	//res.clamp();
 	return res;
 }
 

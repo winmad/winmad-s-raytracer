@@ -13,7 +13,7 @@
 	</viewport>
 	
 	<object>
-		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/test_out_dragon.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/dragon.obj"/>
 		<diffuse r="0.725" g="0.71" b="0.68"/>
 		<ambient r="0.1" g="0.1" b="0.1"/>
 		<shininess shininess="0.1"/>

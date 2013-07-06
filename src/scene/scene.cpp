@@ -1,4 +1,5 @@
 #include "scene.h"
+#include "../raytracer/sampler.h"
 #include "../tinyxml/tinyxml.h"
 
 void Scene::add_geometry(Geometry* g)
@@ -89,6 +90,29 @@ void Scene::load_scene(char* filename)
 
 			add_light(l);
 		}
+        else if (it->ValueStr() == "area_light")
+        {
+            TiXmlElement *attr = it->FirstChildElement();
+            Mesh mesh;
+            std::string filename = attr->Attribute("path");
+            mesh.load(filename.c_str());
+
+            Color3 color;
+            attr = attr->NextSiblingElement();
+            attr->Attribute("r" , &color.r);
+            attr->Attribute("g" , &color.g);
+            attr->Attribute("b" , &color.b);
+            
+            Triangle t;
+			for (int i = 0; i < mesh.triangles.size(); i++)
+			{
+				t = Triangle(mesh.vertices[mesh.triangles[i].v[0]] ,
+					mesh.vertices[mesh.triangles[i].v[1]] ,
+					mesh.vertices[mesh.triangles[i].v[2]]);
+                t.get_material().diffuse = color;
+				area_lightlist.push_back(t);
+			}
+        }
 		else if (it->ValueStr() == "object")
 		{
 			TiXmlElement *attr = it->FirstChildElement();
@@ -127,6 +151,7 @@ void Scene::load_scene(char* filename)
 		}
 		else if (it->ValueStr() == "sphere")
 		{
+            
 		}
 		it = it->NextSiblingElement();
 	}
@@ -135,7 +160,12 @@ void Scene::load_scene(char* filename)
 void Scene::init()
 {
 	/*load_scene();*/
-	load_scene("test.scene");
+	//load_scene("test.scene");
+	load_scene("conerll_box.scene");
+
+    /* sample point light from area light */
+    lightlist = sample_points_on_area_light(area_lightlist , point_light_num);
+    
 	kdtree.init(objlist);
 	kdtree.build_tree(kdtree.root , 1);
 }

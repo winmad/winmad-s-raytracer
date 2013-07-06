@@ -9,7 +9,9 @@
 class Raytracer
 {
 public:
-	static const int max_tracing_depth = 5;
+	static const int max_tracing_depth = 2;
+    
+    static const int samples_per_pixel = 1;
 
 	int width , height;
 	ViewPort view_port;

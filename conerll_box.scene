@@ -3,48 +3,52 @@
 		<position x="278.0" y="273.0" z="-800.0"/>
 	</camera>
 	
-	<point_light>
-		<position x="343.0" y="500.8" z="227.0"/>
+	<viewport>
+		<position x1="0" x2="600" y1="0" y2="600" z1="0" z2="0"/>
+	</viewport>
+	
+	<area_light>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_luminaire.obj"/>
 		<color r="1.0" g="1.0" b="1.0"/>
-	</point_light>
+	</area_light>
 	
 	<object>
-		<file_path path="F:\\Winmad\\THU\\Computer Graphics\\monte carlo\\Winmad's RayTracer\\Winmad's RayTracer\\ObjFiles\\cbox_back.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_back.obj"/>
 		<diffuse r="0.725" g="0.71" b="0.68"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>
 	</object>
 	
 	<object>
-		<file_path path="F:\\Winmad\\THU\\Computer Graphics\\monte carlo\\Winmad's RayTracer\\Winmad's RayTracer\\ObjFiles\\cbox_ceiling.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_ceiling.obj"/>
 		<diffuse r="0.725" g="0.71" b="0.68"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>
 	</object>
 	
 	<object>
-		<file_path path="F:\\Winmad\\THU\\Computer Graphics\\monte carlo\\Winmad's RayTracer\\Winmad's RayTracer\\ObjFiles\\cbox_floor.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_floor.obj"/>
 		<diffuse r="0.725" g="0.71" b="0.68"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>
 	</object>
 	
 	<object>
-		<file_path path="F:\\Winmad\\THU\\Computer Graphics\\monte carlo\\Winmad's RayTracer\\Winmad's RayTracer\\ObjFiles\\cbox_greenwall.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_greenwall.obj"/>
 		<diffuse r="0.14" g="0.45" b="0.091"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>
 	</object>
 
 	<object>
-		<file_path path="F:\\Winmad\\THU\\Computer Graphics\\monte carlo\\Winmad's RayTracer\\Winmad's RayTracer\\ObjFiles\\cbox_redwall.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_redwall.obj"/>
 		<diffuse r="0.63" g="0.065" b="0.05"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>
 	</object>
 	
 	<object>
-		<file_path path="F:\\Winmad\\THU\\Computer Graphics\\monte carlo\\Winmad's RayTracer\\Winmad's RayTracer\\ObjFiles\\cbox_smallbox.obj"/>
+		<file_path path="/home/winmad/winmad-s-raytracer/ObjFiles/cbox_smallbox.obj"/>
 		<diffuse r="0.725" g="0.71" b="0.68"/>
 		<ambient r="0" g="0" b="0"/>
 		<shininess shininess="0"/>

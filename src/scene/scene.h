@@ -26,7 +26,10 @@ public:
 class Scene
 {
 public:
+	static const int point_light_num = 1000;
+	
 	std::vector<PointLight> lightlist;
+    std::vector<Triangle> area_lightlist;
 	std::vector<Geometry*> objlist;
 	KDtree kdtree;
 	Vector3 camera;
