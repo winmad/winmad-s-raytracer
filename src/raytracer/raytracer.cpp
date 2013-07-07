@@ -1,5 +1,4 @@
 #include "raytracer.h"
-#include "sampler.h"
 #include "phong.h"
 
 void Raytracer::init()
@@ -7,7 +6,7 @@ void Raytracer::init()
 	scene.init();
 	view_port = scene.view_port;
 
-	height = 512; width = 512;
+	height = HEIGHT; width = WIDTH;
 
 	view_port.delta.x = (view_port.r.x - view_port.l.x) / (Real)width;
 	view_port.delta.y = (view_port.r.y - view_port.l.y) / (Real)height;
@@ -24,105 +23,60 @@ Geometry* getCrossPointAll(Raytracer& raytracer ,const Ray& ray , Real& t ,
 	{
 		g->hit(ray , t , p , n , inside);
 	}
-    else
-    {
-        t = inf;
-    }
 	return g;
 }
 
-Real calc_t(const Vector3& st , const Vector3& ed , const Vector3& dir)
+Real getDirectCoefficient(Raytracer& raytracer , const Vector3& p)
 {
-    if (cmp(dir.x) != 0)
-        return (ed.x - st.x) / dir.x;
-    else if (cmp(dir.y) != 0)
-        return (ed.y - st.y) / dir.y;
-    else if (cmp(dir.z) != 0)
-        return (ed.z - st.z) / dir.z;
-    return inf;
+	Ray ray = Ray(raytracer.scene.lightlist[0].pos , 
+		p - raytracer.scene.lightlist[0].pos);
+	Geometry *g = raytracer.scene.kdtree.traverse(ray ,
+		raytracer.scene.kdtree.root);
+
+	Real t;
+	Vector3 _p , _n;
+	int _inside;
+
+	if (g == NULL)
+		return 1.0;
+
+	g->hit(ray , t , _p , _n , _inside);
+
+	if (ray.origin + ray.dir * t == p)
+		return 1.0;
+	else 
+		return 0.0;
 }
 
-/* Phong model */
-Color3 calc_brdfTerm(const Vector3& lightDir , const Vector3& visionDir ,
-                     Geometry* g , const Vector3& n)
+Vector3 getReflectDir(const Ray& ray , const Vector3& n)
 {
-    Vector3 reflectDir = n * 2.0 - lightDir;
-    reflectDir.normalize();
-    Real alpha = reflectDir ^ visionDir;
-    Color3 res = g->get_material().diffuse / PI;
-    res = res + g->get_material().specular *
-        (12 / 2 / PI * pow(clamp_val(alpha , 0.0 , 1.0) , 10));
-    return res;
+	Vector3 res = -n * (n ^ ray.dir) * 2.0 + ray.dir;
+	res.normalize();
+	return res;
 }
 
-Color3 direct_illumination(Raytracer& raytracer , Geometry* g ,
-                           const Vector3& p , const Vector3& n ,
-                           const Vector3& visionDir)
+Vector3 getTransDir(const Ray& ray , const Vector3& n , 
+	const Real& refractionIndex , int inside)
 {
-    Color3 res = Color3(0.0 , 0.0 , 0.0);
-    Vector3 lightDir;
-    Real cosTerm;
-    Color3 brdfTerm;
-    Ray ray;
-    Real _t , t_light;
-    Vector3 _p , _n;
-    int _inside;
-
-    int N = 4;
-    
-    for (int i = 0; i < N; i++)
-    {
-        int k = rand() % raytracer.scene.lightlist.size();
-        //int k = i;
-        lightDir = raytracer.scene.lightlist[k].pos - p;
-        lightDir.normalize();
-
-        ray = Ray(p + lightDir * (eps * 10.0) , lightDir);
-        getCrossPointAll(raytracer , ray , _t , _p , _n , _inside);
-        t_light = calc_t(p , raytracer.scene.lightlist[k].pos , lightDir);
-        if (cmp(t_light - _t) > 0)
-            continue;
-        
-        brdfTerm = calc_brdfTerm(lightDir , visionDir , g , n);
-
-        //cosTerm = clamp_val(n ^ lightDir * (-1.0) , 0.0 , 1.0);
-        cosTerm = 1;
-
-        res = res + (raytracer.scene.lightlist[k].color | brdfTerm) *
-            cosTerm;
-    }
-    res = res / N;
-    return res;
-}
-
-Color3 indirect_illumination(Raytracer& raytracer, Geometry* g ,
-                             const Vector3& p , const Vector3& n ,
-                             const Vector3& visionDir , int dep)
-{
-    Color3 res = Color3(0.0 , 0.0 , 0.0);
-    Vector3 reflectDir;
-    Ray ray;
-    Color3 tmp , brdfTerm;
-
-    Real absorb = 1.0 - (g->get_material().specular.r + g->get_material().specular.g + g->get_material().specular.b) / 3.0;
-
-    if (cmp(drand48() - absorb) <= 0)
-        return res;
-
-    int N = 4;
-    
-    for (int i = 0; i < N; i++)
-    {
-        reflectDir = sample_dir_on_hemisphere(n);
-        ray = Ray(p + reflectDir * (eps * 10.0) , reflectDir);
-        tmp = raytracer.raytracing(ray , dep + 1);
-
-        brdfTerm = calc_brdfTerm(reflectDir , visionDir , g , n);
-
-        res = res + (tmp | brdfTerm);
-    }
-    res = res / N * PI;
-    return res / (1.0 - absorb);
+	Real refraction;
+	if (!inside) 
+		refraction = refractionIndex;
+	else
+		refraction = 1.0 / refractionIndex;
+	Vector3 N = n * (inside == 0 ? 1.0 : -1.0);
+	Real cosI = -(N ^ ray.dir);
+	Real cosT = 1.0 - SQR(refraction) * (1.0 - SQR(cosI));
+	Vector3 res;
+	if (cmp(cosT) > 0)
+	{
+		res = ray.dir * refraction + N * (refraction * cosI - sqrt(cosT));
+		res.normalize();
+		return res;
+	}
+	else
+	{
+		return Vector3(inf , inf , inf);
+	}
 }
 
 Color3 Raytracer::raytracing(const Ray& ray , int dep)
@@ -140,11 +94,42 @@ Color3 Raytracer::raytracing(const Ray& ray , int dep)
 	if (g == NULL)
 		return Color3(0.0 , 0.0 , 0.0);
 
-	Color3 direct , indirect , res;
-    direct = direct_illumination(*this , g , p , n , -ray.dir);
-    indirect = indirect_illumination(*this , g , p , n , -ray.dir , dep);
-    res = direct + indirect;
-    return res;
+	Color3 phongRes , reflectRes , transRes;
+	Vector3 reflectDir , transDir;
+	Ray reflectRay , transRay;
+
+	Real directCoe = getDirectCoefficient(*this , p);
+	phongRes = getPhong(p , -ray.dir , n , scene.lightlist[0].pos ,
+		scene.lightlist[0].color , g , directCoe);
+
+	if (g->get_material().shininess > 0)
+	{
+		reflectDir = getReflectDir(ray , n);
+		reflectRay = Ray(p + reflectDir * (2 * eps) , reflectDir);
+		reflectRes = raytracing(reflectRay , dep + 1);
+	}
+
+	if (g->get_material().transparency > 0 &&
+		cmp(g->get_material().refractionIndex) != 0)
+	{
+		transDir = getTransDir(ray , n , 
+			g->get_material().refractionIndex , inside);
+		if (cmp(transDir.sqr_length() - 1) <= 0)
+		{
+			transRay = Ray(p + transDir * (2 * eps) , transDir);
+			transRes = raytracing(transRay , dep + 1);
+		}
+		else
+		{
+			transRes = Color3(0.0 , 0.0 , 0.0);
+		}
+	}
+
+	Color3 res;
+	res = phongRes * (1 - inside) + 
+		reflectRes * g->get_material().shininess +
+		transRes * g->get_material().transparency;
+	return res;
 }
 
 void Raytracer::render(char *filename)
@@ -159,32 +144,12 @@ void Raytracer::render(char *filename)
 		Real x = view_port.l.x;
 		for (int j = 0; j < width; j++)
 		{
-            res = Color3(0.0 , 0.0 , 0.0);
-            for (int k = 0; k < samples_per_pixel; k++)
-            {
-                Vector3 v0 = Vector3(x - 0.5 * view_port.delta.x ,
-                                     y - 0.5 * view_port.delta.y ,
-                                     view_port.l.z);
-                
-                Vector3 v1 = Vector3(x + 0.5 * view_port.delta.x ,
-                                     y - 0.5 * view_port.delta.y ,
-                                     view_port.l.z);
-                
-                Vector3 v2 = Vector3(x - 0.5 * view_port.delta.x ,
-                                     y + 0.5 * view_port.delta.y ,
-                                     view_port.l.z);
-                
-                Vector3 pos_on_viewport = sample_on_rectangle_stratified(
-                    v0 , v1 , v2 , k , samples_per_pixel);
-                
-                Ray ray = Ray(scene.camera , 
-                              pos_on_viewport - scene.camera);
+			Ray ray = Ray(scene.camera , 
+				Vector3(x , y , 0) - scene.camera);
 
-                Color3 tmp = raytracing(ray , 0);
-                tmp.clamp();
-                res = res + tmp;
-            }
-            res = res * (1.0 / (Real)samples_per_pixel);
+			res = raytracing(ray , 0);
+			res.clamp();
+
 			int h = img->height;
 			int w = img->width;
 			int step = img->widthStep;

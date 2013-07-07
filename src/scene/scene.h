@@ -8,6 +8,7 @@
 #include "triangle.h"
 #include "mesh.h"
 #include "KDtree.h"
+#include "../parameters.h"
 #include <vector>
 
 class ViewPort
@@ -26,7 +27,7 @@ public:
 class Scene
 {
 public:
-	static const int point_light_num = 100;
+	static const int point_light_num = POINT_LIGHT_NUM;
 	
 	std::vector<PointLight> lightlist;
     std::vector<Triangle> area_lightlist;
