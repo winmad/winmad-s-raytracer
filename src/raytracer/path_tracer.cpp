@@ -1,9 +1,9 @@
 #include "path_tracer.h"
 #include "sampler.h"
 
-void Pathtracer::init()
+void Pathtracer::init(char *filename)
 {
-	scene.init();
+	scene.init(filename);
 	view_port = scene.view_port;
 
 	height = HEIGHT; width = WIDTH;

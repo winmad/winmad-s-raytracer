@@ -21,7 +21,7 @@ public:
 
 	Pathtracer() {}
 
-	void init();
+	void init(char *filename);
 
 	Color3 raytracing(const Ray& ray , int dep);
 

@@ -158,11 +158,11 @@ void Scene::load_scene(char* filename)
 	}
 }
 
-void Scene::init()
+void Scene::init(char* filename)
 {
 	/*load_scene();*/
 	//load_scene("test.scene");
-	load_scene("conerll_box.scene");
+	load_scene(filename);
 
     /* sample point light from area light */
     lightlist = sample_points_on_area_light(area_lightlist , point_light_num);

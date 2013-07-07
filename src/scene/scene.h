@@ -46,7 +46,7 @@ public:
 
 	void load_scene(char* filename);
 
-	void init();
+	void init(char* filename);
 };
 
 #endif

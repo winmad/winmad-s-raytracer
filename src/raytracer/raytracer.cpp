@@ -1,9 +1,9 @@
 #include "raytracer.h"
 #include "phong.h"
 
-void Raytracer::init()
+void Raytracer::init(char *filename)
 {
-	scene.init();
+	scene.init(filename);
 	view_port = scene.view_port;
 
 	height = HEIGHT; width = WIDTH;
