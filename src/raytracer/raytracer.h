@@ -10,7 +10,7 @@
 class Raytracer
 {
 public:
-	static const int max_tracing_depth = MAX_TRACING_DEPTH;
+	int max_tracing_depth;
 
 	int width , height;
 	ViewPort view_port;
@@ -19,7 +19,7 @@ public:
 
 	Raytracer() {}
 
-	void init(char *filename);
+	void init(char *filename , Parameters& para);
 
 	Color3 raytracing(const Ray& ray , int dep);
 

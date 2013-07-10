@@ -27,7 +27,7 @@ public:
 class Scene
 {
 public:
-	static const int point_light_num = POINT_LIGHT_NUM;
+	int point_light_num;
 	
 	std::vector<PointLight> lightlist;
     std::vector<Triangle> area_lightlist;
@@ -46,7 +46,7 @@ public:
 
 	void load_scene(char* filename);
 
-	void init(char* filename);
+	void init(char* filename , Parameters& para);
 };
 
 #endif

@@ -10,9 +10,15 @@
 class Pathtracer
 {
 public:
-	static const int max_tracing_depth = MAX_TRACING_DEPTH;
+	int max_tracing_depth;
     
-    static const int samples_per_pixel = SAMPLES_PER_PIXEL;
+    int samples_per_pixel;
+    
+    int samples_of_light;
+    
+    int samples_of_hemisphere;
+    
+    int phong_power_index;
 
 	int width , height;
 	ViewPort view_port;
@@ -21,7 +27,7 @@ public:
 
 	Pathtracer() {}
 
-	void init(char *filename);
+	void init(char *filename , Parameters& para);
 
 	Color3 raytracing(const Ray& ray , int dep);
 

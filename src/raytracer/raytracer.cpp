@@ -1,12 +1,14 @@
 #include "raytracer.h"
 #include "phong.h"
 
-void Raytracer::init(char *filename)
+void Raytracer::init(char *filename , Parameters& para)
 {
-	scene.init(filename);
+	max_tracing_depth = para.MAX_TRACING_DEPTH;	
+	
+	scene.init(filename , para);
 	view_port = scene.view_port;
 
-	height = HEIGHT; width = WIDTH;
+	height = para.HEIGHT; width = para.WIDTH;
 
 	view_port.delta.x = (view_port.r.x - view_port.l.x) / (Real)width;
 	view_port.delta.y = (view_port.r.y - view_port.l.y) / (Real)height;
@@ -79,6 +81,8 @@ Vector3 getTransDir(const Ray& ray , const Vector3& n ,
 	}
 }
 
+//static FILE *fp = fopen("debug_whitted.txt" , "w");
+
 Color3 Raytracer::raytracing(const Ray& ray , int dep)
 {
 	if (dep > max_tracing_depth)
@@ -129,6 +133,13 @@ Color3 Raytracer::raytracing(const Ray& ray , int dep)
 	res = phongRes * (1 - inside) + 
 		reflectRes * g->get_material().shininess +
 		transRes * g->get_material().transparency;
+    /*
+    fprintf(fp , "reflect = ");
+    print_color3(fp , reflectRes);
+    fprintf(fp , " trans = ");
+    print_color3(fp , transRes);
+    fprintf(fp , "\n");
+    */
 	return res;
 }
 

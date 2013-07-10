@@ -1,22 +1,28 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-const int MAX_TRACING_DEPTH = 2;
+class Parameters
+{
+public:
+    int MAX_TRACING_DEPTH;
 
-const int SAMPLES_PER_PIXEL = 64;
+    int SAMPLES_PER_PIXEL;
 
 // direct illumination
-const int SAMPLES_OF_LIGHT = 4;
+    int SAMPLES_OF_LIGHT;
 
 // indirect illumination
-const int SAMPLES_OF_HEMISPHERE = 4;
+    int SAMPLES_OF_HEMISPHERE;
 
-const int HEIGHT = 512;
+    int HEIGHT;
 
-const int WIDTH = 512;
+    int WIDTH;
 
-const int PHONG_POWER_INDEX = 10;
+    int PHONG_POWER_INDEX;
 
-const int POINT_LIGHT_NUM = 100;
+    int POINT_LIGHT_NUM;
+
+    void load_parameters(char *filename);
+};
 
 #endif

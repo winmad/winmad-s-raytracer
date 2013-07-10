@@ -1,12 +1,19 @@
 #include "path_tracer.h"
 #include "sampler.h"
 
-void Pathtracer::init(char *filename)
+void Pathtracer::init(char *filename , Parameters& para)
 {
-	scene.init(filename);
+	max_tracing_depth = para.MAX_TRACING_DEPTH;
+	samples_per_pixel = para.SAMPLES_PER_PIXEL;
+	samples_of_light = para.SAMPLES_OF_LIGHT;
+	samples_of_hemisphere = para.SAMPLES_OF_HEMISPHERE;
+	
+	phong_power_index = para.PHONG_POWER_INDEX;
+
+	scene.init(filename , para);
 	view_port = scene.view_port;
 
-	height = HEIGHT; width = WIDTH;
+	height = para.HEIGHT; width = para.WIDTH;
 
 	view_port.delta.x = (view_port.r.x - view_port.l.x) / (Real)width;
 	view_port.delta.y = (view_port.r.y - view_port.l.y) / (Real)height;
@@ -42,16 +49,16 @@ Real calc_t(const Vector3& st , const Vector3& ed , const Vector3& dir)
 }
 
 /* Phong model */
-Color3 calc_brdfTerm(const Vector3& lightDir , const Vector3& visionDir ,
-                     Geometry* g , const Vector3& n)
+Color3 calc_brdfTerm(Pathtracer& pathtracer , const Vector3& lightDir , 
+                     const Vector3& visionDir , Geometry* g , const Vector3& n)
 {
-    Vector3 reflectDir = n * 2.0 - lightDir;
+    Vector3 reflectDir = n * (lightDir ^ n) * 2.0 - lightDir;
     reflectDir.normalize();
     Real alpha = reflectDir ^ visionDir;
     Color3 res = g->get_material().diffuse / PI;
     res = res + g->get_material().specular *
-        ((PHONG_POWER_INDEX + 2) / 2 / PI * 
-        pow(clamp_val(alpha , 0.0 , 1.0) , PHONG_POWER_INDEX));
+        ((pathtracer.phong_power_index + 2) / 2 / PI * 
+        pow(clamp_val(alpha , 0.0 , 1.0) , pathtracer.phong_power_index));
     return res;
 }
 
@@ -68,7 +75,7 @@ Color3 direct_illumination(Pathtracer& pathtracer , Geometry* g ,
     Vector3 _p , _n;
     int _inside;
     
-    for (int i = 0; i < SAMPLES_OF_LIGHT; i++)
+    for (int i = 0; i < pathtracer.samples_of_light; i++)
     {
         int k = rand() % pathtracer.scene.lightlist.size();
         lightDir = pathtracer.scene.lightlist[k].pos - p;
@@ -80,43 +87,107 @@ Color3 direct_illumination(Pathtracer& pathtracer , Geometry* g ,
         if (cmp(t_light - _t) > 0)
             continue;
         
-        brdfTerm = calc_brdfTerm(lightDir , visionDir , g , n);
+        brdfTerm = calc_brdfTerm(pathtracer , lightDir , visionDir , g , n);
 
-        //cosTerm = clamp_val(n ^ lightDir * (-1.0) , 0.0 , 1.0);
+        //cosTerm = clamp_val(n ^ lightDir , 0.0 , 1.0);
         cosTerm = 1;
 
         res = res + (pathtracer.scene.lightlist[k].color | brdfTerm) *
             cosTerm;
     }
-    res = res / SAMPLES_OF_LIGHT;
+    res = res / pathtracer.samples_of_light;
     return res;
 }
 
+Vector3 getTransDir(const Vector3 &rayDir , const Vector3& n , 
+	const Real& refractionIndex , int inside)
+{
+	Real refraction;
+	if (!inside) 
+		refraction = refractionIndex;
+	else
+		refraction = 1.0 / refractionIndex;
+	Vector3 N = n * (inside == 0 ? 1.0 : -1.0);
+	Real cosI = -(N ^ rayDir);
+	Real cosT = 1.0 - SQR(refraction) * (1.0 - SQR(cosI));
+	Vector3 res;
+	if (cmp(cosT) > 0)
+	{
+		res = rayDir * refraction + N * (refraction * cosI - sqrt(cosT));
+		res.normalize();
+		return res;
+	}
+	else
+	{
+		return Vector3(inf , inf , inf);
+	}
+}
+
+//static FILE *fp = fopen("debug.txt" , "w");
+
 Color3 indirect_illumination(Pathtracer& pathtracer, Geometry* g ,
                              const Vector3& p , const Vector3& n ,
-                             const Vector3& visionDir , int dep)
+                             const Vector3& visionDir , int inside , int dep)
 {
     Color3 res = Color3(0.0 , 0.0 , 0.0);
     Vector3 reflectDir;
     Ray ray;
-    Color3 tmp , brdfTerm;
+    Color3 tmp , brdfTerm , btdfTerm;
 
     Real absorb = 1.0 - (g->get_material().specular.r + g->get_material().specular.g + g->get_material().specular.b) / 3.0;
 
     if (cmp(drand48() - absorb) <= 0)
         return res;
+
+    Color3 reflectRes = Color3(0.0 , 0.0 , 0.0);
+    Color3 transRes = Color3(0.0 , 0.0 , 0.0);
     
-    for (int i = 0; i < SAMPLES_OF_HEMISPHERE; i++)
+    for (int i = 0; i < pathtracer.samples_of_hemisphere; i++)
     {
         reflectDir = sample_dir_on_hemisphere(n);
         ray = Ray(p + reflectDir * (eps * 10.0) , reflectDir);
         tmp = pathtracer.raytracing(ray , dep + 1);
 
-        brdfTerm = calc_brdfTerm(reflectDir , visionDir , g , n);
+        brdfTerm = calc_brdfTerm(pathtracer , reflectDir , visionDir , g , n);
 
-        res = res + (tmp | brdfTerm);
+        reflectRes = reflectRes + (tmp | brdfTerm);
     }
-    res = res / SAMPLES_OF_HEMISPHERE * PI;
+    reflectRes = reflectRes / pathtracer.samples_of_hemisphere * PI;
+
+    if (cmp(g->get_material().transparency) > 0 &&
+        cmp(g->get_material().refractionIndex) != 0)
+    {
+        Vector3 transDir = getTransDir(-visionDir , n , g->get_material().refractionIndex , inside);
+        
+        if (cmp(transDir.sqr_length() - 1) <= 0)
+        {
+            ray = Ray(p + transDir * (eps * 10.0) , transDir);
+            tmp = pathtracer.raytracing(ray , dep + 1);
+            /*
+            Vector3 otherHemisphere = n * ((-n) ^ transDir * 2) + transDir; 
+            btdfTerm = calc_brdfTerm(pathtracer , otherHemisphere ,
+                                     visionDir , g , n);
+            */
+            btdfTerm = Color3(1.0 , 1.0 , 1.0);
+            
+            transRes = transRes + (tmp | btdfTerm);
+        }
+        else
+        {
+            transRes = Color3(0.0 , 0.0 , 0.0);
+        }
+
+        transRes = transRes * g->get_material().transparency;
+    }
+
+    res = reflectRes + transRes;
+    /*
+    fprintf(fp , "reflect = ");
+    print_color3(fp , reflectRes);
+    fprintf(fp , " trans = ");
+    print_color3(fp , transRes);
+    fprintf(fp , "\n");
+    */
     return res / (1.0 - absorb);
 }
 
@@ -135,10 +206,12 @@ Color3 Pathtracer::raytracing(const Ray& ray , int dep)
 	if (g == NULL)
 		return Color3(0.0 , 0.0 , 0.0);
 
-	Color3 direct , indirect , res;
+	Color3 emit , direct , indirect , res;
+    emit = Color3(0 , 0 , 0);
     direct = direct_illumination(*this , g , p , n , -ray.dir);
-    indirect = indirect_illumination(*this , g , p , n , -ray.dir , dep);
-    res = direct + indirect;
+    indirect = indirect_illumination(*this , g , p , n , -ray.dir ,
+                                     inside , dep);
+    res = emit + direct + indirect;
     return res;
 }
 
