@@ -74,6 +74,18 @@ Vector3 sample_dir_on_hemisphere(const Vector3& n)
     return reflectDir;
 }
 
+Vector3 uniform_sample_dir_on_sphere()
+{
+    Real u1 = drand48();
+    Real u2 = drand48();
+    Real z = 1.0 - 2.0 * u1;
+    Real r = sqrt(std::max(0.0 , 1.0 - z * z));
+    Real phi = 2.0 * PI * u2;
+    Real x = r * cos(phi);
+    Real y = r * sin(phi);
+    return Vector3(x , y , z);
+}
+
 std::vector<PointLight> sample_points_on_area_light(
     std::vector<Triangle>& triangles , int totSamples)
 {

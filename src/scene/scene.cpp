@@ -12,6 +12,26 @@ void Scene::add_light(PointLight l)
 	lightlist.push_back(l);
 }
 
+Geometry* Scene::intersect(const Ray& ray , Real& t , Vector3& p ,
+                           Vector3& n , int& inside)
+{
+    Geometry *g = NULL;
+    g = kdtree.traverse(ray , kdtree.root);
+    if (g != NULL)
+        g->hit(ray , t , p , n , inside);
+    return g;
+}
+
+bool Scene::intersect(const Ray& ray)
+{
+    Geometry *g = NULL;
+    g = kdtree.traverse(ray , kdtree.root);
+    if (g == NULL)
+        return 0;
+    else
+        return 1;
+}
+
 // build-in scene: many balls
 void Scene::load_scene()
 {

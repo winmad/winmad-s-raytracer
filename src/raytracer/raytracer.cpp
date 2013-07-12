@@ -15,7 +15,7 @@ void Raytracer::init(char *filename , Parameters& para)
 	view_port.delta.z = 0.0;
 }
 
-Geometry* getCrossPointAll(Raytracer& raytracer ,const Ray& ray , Real& t , 
+static Geometry* getCrossPointAll(Raytracer& raytracer ,const Ray& ray , Real& t , 
 	Vector3& p , Vector3& n , int& inside)
 {
 	Geometry *g = NULL;
@@ -28,7 +28,7 @@ Geometry* getCrossPointAll(Raytracer& raytracer ,const Ray& ray , Real& t ,
 	return g;
 }
 
-Real getDirectCoefficient(Raytracer& raytracer , const Vector3& p)
+static Real getDirectCoefficient(Raytracer& raytracer , const Vector3& p)
 {
 	Ray ray = Ray(raytracer.scene.lightlist[0].pos , 
 		p - raytracer.scene.lightlist[0].pos);
@@ -50,14 +50,14 @@ Real getDirectCoefficient(Raytracer& raytracer , const Vector3& p)
 		return 0.0;
 }
 
-Vector3 getReflectDir(const Ray& ray , const Vector3& n)
+static Vector3 getReflectDir(const Ray& ray , const Vector3& n)
 {
 	Vector3 res = -n * (n ^ ray.dir) * 2.0 + ray.dir;
 	res.normalize();
 	return res;
 }
 
-Vector3 getTransDir(const Ray& ray , const Vector3& n , 
+static Vector3 getTransDir(const Ray& ray , const Vector3& n , 
 	const Real& refractionIndex , int inside)
 {
 	Real refraction;

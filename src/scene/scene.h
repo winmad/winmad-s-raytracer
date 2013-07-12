@@ -47,6 +47,11 @@ public:
 	void load_scene(char* filename);
 
 	void init(char* filename , Parameters& para);
+
+    Geometry* intersect(const Ray& ray , Real& t , Vector3& p ,
+                        Vector3& n , int& inside);
+
+    bool intersect(const Ray& ray);
 };
 
 #endif
