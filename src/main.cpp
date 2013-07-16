@@ -28,7 +28,8 @@ int main(int argc , char* argv[])
 	{
 		photonIntegrator.init(argv[1] , para);
 		photonIntegrator.buildPhotonMap(photonIntegrator.scene);
-		photonIntegrator.render(argv[2]);
+		if (argc == 4)
+			photonIntegrator.render(argv[2]);
 	}
 	else
 	{

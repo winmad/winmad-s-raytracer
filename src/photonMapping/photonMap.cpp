@@ -11,7 +11,7 @@ void PhotonIntegrator::init(char *filename , Parameters& para)
 
     knnPhotons = 50;
 
-    maxSqrDis = 100;
+    maxSqrDis = 1000;
     
     maxPathLength = 5;
 
@@ -149,6 +149,9 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
                             causticPhotons.push_back(photon);
                             if (causticPhotons.size() == nCausticPhotons)
                             {
+                                visualize(causticPhotons , view_port ,
+                                          scene , "caustic_photon_map.bmp");
+                                
                                 causticDone = 1;
                                 nCausticPaths = nShot;
                                 causticMap = new PhotonKDtree();
@@ -164,6 +167,9 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
                             indirectPhotons.push_back(photon);
                             if (indirectPhotons.size() == nIndirectPhotons)
                             {
+                                visualize(indirectPhotons , view_port ,
+                                          scene , "indirect_photon_map.bmp");
+                                
                                 indirectDone = 1;
                                 nIndirectPaths = nShot;
                                 
@@ -235,7 +241,7 @@ static Real kernel(const Photon *photon , const Vector3& p , const Real& msd)
     return res;
 }
 
-Color3 PhotonIntegrator::estimate(PhotonKDtree *map , int nPaths , int knn ,
+static Color3 estimate(PhotonKDtree *map , int nPaths , int knn ,
                                   Geometry* g , const Vector3& p ,
                                   const Vector3& n , const Vector3& wo ,
                                   Real maxSqrDis)
@@ -293,6 +299,82 @@ Color3 PhotonIntegrator::estimate(PhotonKDtree *map , int nPaths , int knn ,
     return res;
 }
 
+static Real calc_t(const Vector3& st , const Vector3& ed , const Vector3& dir)
+{
+    if (cmp(dir.x) != 0)
+        return (ed.x - st.x) / dir.x;
+    else if (cmp(dir.y) != 0)
+        return (ed.y - st.y) / dir.y;
+    else if (cmp(dir.z) != 0)
+        return (ed.z - st.z) / dir.z;
+    return inf;
+}
+
+static Color3 directIllumination(Scene& scene , Geometry* g ,
+                           const Vector3& p , const Vector3& n ,
+                           const Vector3& visionDir)
+{
+    Color3 res = Color3(0.0 , 0.0 , 0.0);
+    Vector3 lightDir;
+    Real cosTerm;
+    Color3 brdfTerm;
+    Ray ray;
+    Real _t , t_light;
+    Vector3 _p , _n;
+    int _inside;
+    
+    for (int i = 0; i < 8; i++)
+    {
+        int k = rand() % scene.lightlist.size();
+        lightDir = scene.lightlist[k].pos - p;
+        lightDir.normalize();
+
+        ray = Ray(p + lightDir * (eps * 10.0) , lightDir);
+        scene.intersect(ray , _t , _p , _n , _inside);
+        t_light = calc_t(p , scene.lightlist[k].pos , lightDir);
+        if (cmp(t_light - _t) > 0)
+            continue;
+        
+        brdfTerm = calc_brdf(lightDir , visionDir , g , n);
+
+        cosTerm = clamp_val(n ^ lightDir , 0.0 , 1.0);
+        //cosTerm = 1;
+
+        res = res + (scene.lightlist[k].color | brdfTerm) *
+            cosTerm;
+    }
+    res = res / 8;
+    return res;
+}
+
+static Color3 finalGathering(PhotonKDtree *map , Scene& scene , Geometry *g ,
+                             const Vector3& p , const Vector3& n , const Vector3& wo ,
+                             int gatherSamples , int knn , Real maxSqrDis)
+{
+    Color3 res = Color3(0.0 , 0.0 , 0.0);
+    for (int i = 0; i < gatherSamples; i++)
+    {
+        Vector3 wi = sample_dir_on_hemisphere(n);
+        Ray ray = Ray(p + wi * (10.0 * eps) , wi);
+
+        Real _t;
+        Vector3 _p , _n;
+        int _inside;
+        
+        Geometry *_g = scene.intersect(ray , _t , _p , _n , _inside);
+
+        if (_g == NULL)
+            continue;
+        
+        Color3 tmp = estimate(map , 0 , knn , _g , _p , _n , -wi , maxSqrDis);
+
+        Color3 brdf = calc_brdf(wi , wo , g , n);
+        res = res + (tmp | brdf) * PI;
+    }
+    res = res / gatherSamples;
+    return res;
+}
+
 Color3 PhotonIntegrator::raytracing(const Ray& ray , int dep)
 {
     Color3 res = Color3(0.0 , 0.0 , 0.0);
@@ -304,19 +386,127 @@ Color3 PhotonIntegrator::raytracing(const Ray& ray , int dep)
     Real t;
     Geometry *g = NULL;
     int inside;
+    Ray reflectRay , transRay;
 
     g = scene.intersect(ray , t , p , n , inside);
 
     if (g == NULL)
         return res;
     
-    res = res + estimate(indirectMap , nIndirectPaths , knnPhotons ,
-                         g , p , n , -ray.dir , maxSqrDis);
-    
-    res = res + estimate(causticMap , nCausticPaths , knnPhotons ,
-      g , p , n , -ray.dir , maxSqrDis);
+    //res = res + directIllumination(scene , g , p , n , -ray.dir);
+      
+    //res = res + estimate(indirectMap , nIndirectPaths , knnPhotons , g , p , n , -ray.dir , maxSqrDis);
 
+    //Color3 t1 = estimate(indirectMap , nIndirectPaths , knnPhotons , g , p , n , -ray.dir , maxSqrDis);
+    //Color3 t2 = finalGathering(indirectMap , scene , g , p , n , -ray.dir , 50 , knnPhotons , maxSqrDis);
+    
+    res = res + finalGathering(indirectMap , scene , g , p , n , -ray.dir , 50 , knnPhotons , maxSqrDis);
+    /*
+    res = res + estimate(causticMap , nCausticPaths , knnPhotons , g , p , n , -ray.dir , maxSqrDis);
+
+    if (cmp(g->get_material().shininess) > 0)
+    {
+        Vector3 dir = getReflectDir(ray , n);
+        reflectRay = Ray(p + dir * (10.0 * eps) , dir);
+        res = res + raytracing(reflectRay , dep + 1);
+    }
+
+    if (cmp(g->get_material().transparency) > 0)
+    {
+        Vector3 dir = getTransDir(ray , n , g->get_material().refractionIndex , inside);
+        if (cmp(dir.sqr_length()) <= 1)
+        {
+            transRay = Ray(p + dir * (10.0 * eps) , dir);
+            res = res + raytracing(transRay , dep + 1);
+        }
+    }
+    */
     return res;
+}
+
+void PhotonIntegrator::visualize(const std::vector<Photon>& photons ,
+                                 const ViewPort& viewPort ,
+                                 Scene& scene , char *filename)
+{
+    IplImage *img = 0;
+    img = cvCreateImage(cvSize(width , height) ,
+                        IPL_DEPTH_8U , 3);
+    Color3 res;
+
+    Color3 **col;
+    int **cnt;
+
+    col = new Color3*[height];
+    cnt = new int*[height];
+    for (int i = 0; i < height; i++)
+    {
+        col[i] = new Color3[width];
+        cnt[i] = new int[width];
+        for (int j = 0; j < width; j++)
+        {
+            col[i][j] = Color3(0.0 , 0.0 , 0.0);
+            cnt[i][j] = 0;
+        }
+    }
+
+    for (int i = 0; i < photons.size(); i++)
+    {
+        Photon photon = photons[i];
+        Vector3 p = photon.p;
+        Real x , y , z0 , t;
+        z0 = viewPort.l.z;
+        Vector3 dir = p - scene.camera;
+        if (cmp(dir.z) != 0)
+        {
+            t = (z0 - p.z) / dir.z;
+            x = p.x + t * dir.x;
+            y = p.y + t * dir.y;
+        }
+        else
+        {
+            t = inf;
+            x = 0;
+            y = 0;
+        }
+
+        Ray shadowRay = Ray(p - dir * (10.0 * eps) , -dir);
+        if (scene.intersect(shadowRay) != NULL)
+            continue;
+        
+        int r , c;
+        r = round((y - viewPort.l.y) / (viewPort.r.y - viewPort.l.y) * (double)height);
+        c = round((x - viewPort.l.x) / (viewPort.r.x - viewPort.l.x) * (double)width);
+        r = std::max(0 , std::min(r , height - 1));
+        c = std::max(0 , std::min(c , width - 1));
+        cnt[r][c]++;
+        col[r][c] = col[r][c] + photon.alpha;
+    }
+
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            col[i][j] = col[i][j] / ((double)cnt[i][j] * 4 * PI * 100);
+            int h = img->height;
+			int w = img->width;
+			int step = img->widthStep;
+			int channels = img->nChannels;
+
+			uchar *data = (uchar*)img->imageData;
+			data[(h - i - 1) * step + j * channels + 0] = col[i][j].B();
+			data[(h - i - 1) * step + j * channels + 1] = col[i][j].G();
+			data[(h - i - 1) * step + j * channels + 2] = col[i][j].R();
+        }
+    }
+
+    for (int i = 0; i < height; i++)
+    {
+        delete[] col[i];
+        delete[] cnt[i];
+    }
+    delete[] col;
+    delete[] cnt;
+    cvSaveImage(filename , img);
 }
 
 void PhotonIntegrator::render(char *filename)
