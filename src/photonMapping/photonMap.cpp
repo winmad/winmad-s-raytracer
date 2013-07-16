@@ -1,19 +1,21 @@
 #include "photonMap.h"
 #include "../raytracer/sampler.h"
 
+static FILE *fp = fopen("debug_pm.txt" , "w");
+
 void PhotonIntegrator::init(char *filename , Parameters& para)
 {
-    nCausticPhotons = 2000;
+    nCausticPhotons = 20000;
     
-    nIndirectPhotons = 10000;
+    nIndirectPhotons = 100000;
 
-    knnPhotons = 5;
+    knnPhotons = 50;
 
-    maxSqrDis = 1.0;
+    maxSqrDis = 100;
     
     maxPathLength = 5;
 
-    maxPhotonShot = 50000;
+    maxPhotonShot = 500000;
 
     causticMap = NULL;
     indirectMap = NULL;
@@ -80,9 +82,22 @@ static Color3 calc_btdf(const Vector3& lightDir ,
 {
     Vector3 otherHemisphereDir = n * (lightDir ^ (-n)) * 2.0 + lightDir;
     otherHemisphereDir.normalize();
-    return calc_brdf(lightDir , otherHemisphereDir , g , n);
+    return calc_brdf(otherHemisphereDir , visionDir , g , n);
 }
 
+static void print_KD_tree(PhotonKDtreeNode *tr)
+{
+    if (tr == NULL)
+        return;
+    if (tr->photons.size() == 0)
+        return;
+
+    fprintf(fp , "-----------------------\n");
+    fprintf(fp , "axis = %d, pos = (%.3lf,%.3lf,%.3lf)\n" , tr->axis ,
+            tr->photons[0].p.x , tr->photons[0].p.y , tr->photons[0].p.z);
+    print_KD_tree(tr->left);
+    print_KD_tree(tr->right);
+}
 
 void PhotonIntegrator::buildPhotonMap(Scene& scene)
 {
@@ -105,7 +120,7 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
     {
         nShot++;
 
-        /* generate photon ray */
+        /* generate initial photon ray */
         int k = rand() % (int)scene.lightlist.size();
         Color3 alpha = scene.lightlist[k].color;
         
@@ -151,6 +166,7 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
                             {
                                 indirectDone = 1;
                                 nIndirectPaths = nShot;
+                                
                                 indirectMap = new PhotonKDtree();
                                 indirectMap->init(indirectPhotons);
                                 indirectMap->build_tree(indirectMap->root , 0);
@@ -168,7 +184,7 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
                 {
                     dir = getReflectDir(photonRay , n);
                     Color3 brdf = calc_brdf(-photonRay.dir , dir , g , n);
-                    Real cosTerm = fabs(n ^ dir);
+                    Real cosTerm = fabs(n ^ photonRay.dir);
                     alpha = (alpha | brdf) * cosTerm;
                     if (cmp(alpha.r + alpha.g + alpha.b) <= 0)
                         break;
@@ -180,7 +196,7 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
                     if (cmp(dir.sqr_length() - 100) > 0)
                         break;
                     Color3 btdf = calc_btdf(-photonRay.dir , dir , g , -n);
-                    Real cosTerm = fabs(n ^ dir);
+                    Real cosTerm = fabs(n ^ photonRay.dir);
                     alpha = (alpha | btdf) * cosTerm;
                     if (cmp(alpha.r + alpha.g + alpha.b) <= 0)
                         break;
@@ -205,9 +221,18 @@ void PhotonIntegrator::buildPhotonMap(Scene& scene)
                         break;
                     alpha = alpha / 0.5;
                 }
+                g = scene.intersect(photonRay , t , p , n , inside);
             }
         }
     }
+}
+
+static Real kernel(const Photon *photon , const Vector3& p , const Real& msd)
+{
+    Vector3 d = p - photon->p;
+    Real res = (1.0 - d.sqr_length() / msd);
+    res = 3.0 / PI * SQR(res);
+    return res;
 }
 
 Color3 PhotonIntegrator::estimate(PhotonKDtree *map , int nPaths , int knn ,
@@ -223,17 +248,37 @@ Color3 PhotonIntegrator::estimate(PhotonKDtree *map , int nPaths , int knn ,
     std::vector<ClosePhoton> kPhotons;
     Photon photon;
     photon.p = p;
+
+    Real searchSqrDis = maxSqrDis;
+    Real msd; /* max square distance */
+    while (kPhotons.size() < knn)
+    {
+        msd = searchSqrDis;
+        kPhotons.clear();
+        map->search_k_photons(kPhotons , map->root , photon , knn , msd);
+        searchSqrDis *= 2.0;
+    }
     
-    map->search_k_photons(kPhotons , map->root , photon , knn , maxSqrDis);
-    Real scale = 1.0 / ((Real)nPaths * maxSqrDis * PI);
     int nFoundPhotons = kPhotons.size();
+
+    if (nFoundPhotons == 0)
+        return res;
+    
     Vector3 nv;
     if (cmp(wo ^ n) < 0)
         nv = -n;
     else
         nv = n;
+
+    Real scale = 1.0 / (PI * msd * nFoundPhotons);
+    
     for (int i = 0; i < nFoundPhotons; i++)
     {
+        /*
+        Real k = kernel(kPhotons[i].photon , p , msd);
+        k = 1.0 / PI;
+        Real scale = k / (nPaths * msd);
+        */
         if (cmp(nv ^ kPhotons[i].photon->wi) > 0)
         {
             Color3 brdf = calc_brdf(kPhotons[i].photon->wi , wo , g , nv);
@@ -264,12 +309,12 @@ Color3 PhotonIntegrator::raytracing(const Ray& ray , int dep)
 
     if (g == NULL)
         return res;
-
-    //res = res + estimate(indirectMap , nIndirectPaths , knnPhotons ,
-    //                     g , p , n , -ray.dir , maxSqrDis);
-
-    res = res + estimate(causticMap , nCausticPaths , knnPhotons ,
+    
+    res = res + estimate(indirectMap , nIndirectPaths , knnPhotons ,
                          g , p , n , -ray.dir , maxSqrDis);
+    
+    res = res + estimate(causticMap , nCausticPaths , knnPhotons ,
+      g , p , n , -ray.dir , maxSqrDis);
 
     return res;
 }
@@ -312,6 +357,10 @@ void PhotonIntegrator::render(char *filename)
                 res = res + tmp;
             }
             res = res * (1.0 / (Real)samples_per_pixel);
+            /*
+            fprintf(fp , "c=(%.3lf,%.3lf,%.3lf)\n" ,
+                    res.r , res.g , res.b);
+            */
 			int h = img->height;
 			int w = img->width;
 			int step = img->widthStep;

@@ -75,6 +75,10 @@ public:
 
     void build_tree(PhotonKDtreeNode *tr , int dep);
 
+	void naive_search_k_photons(std::vector<ClosePhoton>& kPhotons ,
+                                PhotonKDtreeNode *tr , const Photon& p ,
+                                const int& K , Real& maxSqrDis);
+                                   
     void search_k_photons(std::vector<ClosePhoton>& kPhotons ,
                           PhotonKDtreeNode *tr , const Photon& p ,
                           const int& K , Real& maxSqrDis);

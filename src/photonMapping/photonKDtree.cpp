@@ -126,6 +126,41 @@ void PhotonKDtree::build_tree(PhotonKDtreeNode *tr , int dep)
     build_tree(right , dep + 1);
 }
 
+void PhotonKDtree::naive_search_k_photons(std::vector<ClosePhoton>& kPhotons ,
+                                   PhotonKDtreeNode *tr , const Photon& p ,
+                                   const int& K , Real& maxSqrDis)
+{
+    if (tr == NULL)
+        return;
+    if (tr->photons.size() <= 0)
+        return;
+
+    Vector3 d = p.p - tr->photons[0].p;
+    Real sqrDis = d.sqr_length();
+    
+    if (cmp(sqrDis - maxSqrDis) < 0)
+    {
+        if (kPhotons.size() < K)
+        {
+            kPhotons.push_back(ClosePhoton(&tr->photons[0] , sqrDis));
+            if (kPhotons.size() == K)
+            {
+                std::make_heap(kPhotons.begin() , kPhotons.end());
+                maxSqrDis = kPhotons[0].sqrDis;
+            }
+        }
+        else
+        {
+            std::pop_heap(kPhotons.begin() , kPhotons.end());
+            kPhotons[K - 1] = ClosePhoton(&tr->photons[0] , sqrDis);
+            std::push_heap(kPhotons.begin() , kPhotons.end());
+            maxSqrDis = kPhotons[0].sqrDis;
+        }
+    }
+    naive_search_k_photons(kPhotons , tr->left , p , K , maxSqrDis);
+    naive_search_k_photons(kPhotons , tr->right , p , K , maxSqrDis);
+}
+
 void PhotonKDtree::search_k_photons(std::vector<ClosePhoton>& kPhotons ,
                                     PhotonKDtreeNode *tr , const Photon& p ,
                                     const int& K , Real& maxSqrDis)
@@ -153,12 +188,15 @@ void PhotonKDtree::search_k_photons(std::vector<ClosePhoton>& kPhotons ,
     }
     
     search_k_photons(kPhotons , near , p , K , maxSqrDis);
+
+    Vector3 d = p.p - tr->photons[0].p;
+    Real sqrDis = d.sqr_length();
     
-    if (cmp(sqrDelta - maxSqrDis) < 0)
+    if (cmp(sqrDis - maxSqrDis) < 0)
     {
         if (kPhotons.size() < K)
         {
-            kPhotons.push_back(ClosePhoton(&tr->photons[0] , sqrDelta));
+            kPhotons.push_back(ClosePhoton(&tr->photons[0] , sqrDis));
             if (kPhotons.size() == K)
             {
                 std::make_heap(kPhotons.begin() , kPhotons.end());
@@ -168,11 +206,11 @@ void PhotonKDtree::search_k_photons(std::vector<ClosePhoton>& kPhotons ,
         else
         {
             std::pop_heap(kPhotons.begin() , kPhotons.end());
-            kPhotons[K - 1] = ClosePhoton(&tr->photons[0] , sqrDelta);
+            kPhotons[K - 1] = ClosePhoton(&tr->photons[0] , sqrDis);
             std::push_heap(kPhotons.begin() , kPhotons.end());
             maxSqrDis = kPhotons[0].sqrDis;
         }
-        
-        search_k_photons(kPhotons , far , p , K , maxSqrDis);
     }
+    if (cmp(sqrDelta - maxSqrDis) < 0)
+        search_k_photons(kPhotons , far , p , K , maxSqrDis);
 }
